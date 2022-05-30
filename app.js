@@ -1,57 +1,68 @@
-const express = require('express');
+const express = require("express");
 const bodyParser = require("body-parser");
 const request = require("request");
+const https = require("https");
 
 const app = express();
-const mailchimp = require("@mailchimp/mailchimp_marketing");
-const listID = "ea80362c0d";
-
-mailchimp.setConfig({
-  apiKey: "ec36b81efa641239f049c302624d4cfc-us17",
-  server: "us17",
-});
 
 app.use(express.static("public"));
-app.use(bodyParser.urlencoded({extended:true}));
 
-app.get('/', function(req, res){
-  res.sendFile(__dirname+"/signup.html");
-});
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
 
-app.post('/', function(req,res){
-  var fName = req.body.fName;
-  var lName = req.body.sName;
-  var email = req.body.txtemail;
+app.get("/", function(req, res) {
+  res.sendFile(__dirname + "/signup.html");
+})
 
-  async function run() {
-    const response = await mailchimp.lists.addListMember(listID,{
+app.post("/", function(req, res) {
+
+  const firstName = req.body.fName;
+  const lastName = req.body.lName;
+  const email = req.body.email;
+  //console.log(firstName, lastName, email);
+
+  const data = {
+    members: [{
       email_address: email,
-      status:"subscribed",
-      merge_fields:{
-        FNAME: fName,
-        LNAME: lName}
+      status: "subscribed",
+      merge_fields: {
+        FNAME: firstName,
+        LNAME: lastName
+      }
+    }]
+  };
 
-      }).then(responses => {
-          console.log(responses);
-          if(responses.id !== "") {
-              res.sendFile(__dirname+"/success.html");
-          }
+  const jsonData = JSON.stringify(data);
 
-        }).catch(err => {
-              res.sendFile(__dirname+"/failure.html");
-              console.log('Error')
-        });
+  const url = "https://us17.api.mailchimp.com/3.0/lists/ea80362c0d";
 
-
-
+  const options = {
+    method: "POST",
+    auth: "piyush:ec36b81efa641239f049c302624d4cfc-us17"
   }
 
-  run();
+  const request = https.request(url, options, function(response) {
 
+      if( response.statusCode == 200 ){
+        res.sendFile(__dirname+ "/success.html");
+      }
+      else{
+        res.sendFile(__dirname+ "/failure.html");
+      }
+
+      response.on("data", function(data) {
+      console.log(JSON.parse(data));
+    });
+  });
+  request.write(jsonData);
+  request.end();
 });
-app.post("/failure",function(req,res){
-  res.redirect("/")
-})
-app.listen(process.env.PORT,function(){
 
+app.post("/failure", function(req, res){
+    res.redirect("/");
+})
+
+app.listen(process.env.PORT || 3000, function() {
+  console.log("Server is running on port 3000");
 });
